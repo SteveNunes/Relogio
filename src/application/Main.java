@@ -5,16 +5,20 @@ import java.util.Date;
 import java.util.regex.Pattern;
 
 import gameutil.FPSHandler;
-import gui.util.ControllerUtils;
 import gui.util.ImageUtils;
 import javafx.application.Application;
 import javafx.scene.Scene;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
+import javafx.scene.control.CheckMenuItem;
+import javafx.scene.control.Menu;
+import javafx.scene.control.MenuBar;
+import javafx.scene.control.MenuItem;
+import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.image.Image;
 import javafx.scene.image.PixelReader;
 import javafx.scene.input.KeyCode;
-import javafx.scene.layout.StackPane;
+import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.TextAlignment;
@@ -31,13 +35,15 @@ public class Main extends Application {
 	private final static int screenH = 800;
 	private final static int[][] clockTicks = {{60000, 3600000, 43200000}, {60, 3600000, 43200000}};
 	private final static float circleX = screenW / 2;
-	private final static float circleY = screenH / 2.5f;
+	private final static float circleY = screenH / 2.55f;
 	private final static float circleR = screenW / 3;
 	
 	private Stage mainStage;
+	MenuBar menuBar;
 	private Canvas canvas;
 	private Image numberSkin;
 	private Image[] numberSkins;
+	private Color bgDigitalColor;
 	private FPSHandler fpsHandler;
 	private boolean isWindowOpened;
 	private boolean softlySecondsPointerMove;
@@ -66,7 +72,9 @@ public class Main extends Application {
 		canvas.getGraphicsContext2D().setImageSmoothing(false);
 		loadDigitalSkins();
 		replaceColors(false);
-		Scene scene = new Scene(new StackPane(canvas));
+		menuBar = new MenuBar();
+		Scene scene = new Scene(new VBox(menuBar, canvas));
+		refreshMenuBar();
 		setOnKeyPressEvents(scene);
 		stage.setTitle("Relógio");
 		stage.setScene(scene);
@@ -78,6 +86,77 @@ public class Main extends Application {
 		mainLoop();
 	}
 	
+	private void refreshMenuBar() {
+		if (menuBar == null)
+			return;
+		menuBar.getMenus().clear();
+		Menu menu = new Menu("Menu");
+		menuBar.getMenus().add(menu);
+
+		Menu menuF1 = new Menu("Digital Number Skin");
+		menu.getItems().add(menuF1);
+		for (int n = 0; n < numberSkins.length; n++) {
+			final int nn = n;
+			CheckMenuItem checkMenuItem = new CheckMenuItem("Skin " + (n + 1));
+			checkMenuItem.setSelected(n == numberSkinIndex);
+			checkMenuItem.setOnAction(e -> {
+				numberSkinIndex = nn;
+				refreshNumberSkin();
+			});
+			menuF1.getItems().add(checkMenuItem);
+		}
+
+		Menu menuF2 = new Menu("Digital Number Color");
+		menu.getItems().add(menuF2);
+		for (int i = 1, n = 2; ; n += 4, i++) {
+			if (numberSkins[numberSkinIndex].getPixelReader().getColor(n, 0)
+					.equals(numberSkins[numberSkinIndex].getPixelReader().getColor(n + 2, 0)))
+						break;
+			final int nn = n - 2;
+			CheckMenuItem checkMenuItem = new CheckMenuItem("Color " + i);
+			checkMenuItem.setSelected(nn == repColorIndex);
+			checkMenuItem.setOnAction(e -> {
+				repColorIndex = nn;
+				replaceColors(false);
+			});
+			menuF2.getItems().add(checkMenuItem);
+		}
+
+		Menu menuF3 = new Menu("Digital Number Scroll Style");
+		menu.getItems().add(menuF3);
+		for (int n = 1; n <= 3; n++) {
+			final int nn = n;
+			CheckMenuItem checkMenuItem = new CheckMenuItem("Style " + n);
+			checkMenuItem.setSelected(n == digitalScrollNumberType);
+			checkMenuItem.setOnAction(e -> {
+				digitalScrollNumberType = nn;
+				for (int i = 0; i < 6; i++)
+					scrollDigit[i] = 0;
+				refreshMenuBar();
+			});
+			menuF3.getItems().add(checkMenuItem);
+		}
+
+		menu.getItems().add(new SeparatorMenuItem());
+		CheckMenuItem checkMenuItem = new CheckMenuItem("Softly move seconds pointer");
+		checkMenuItem.setOnAction(e -> {
+			softlySecondsPointerMove = !softlySecondsPointerMove; 
+			checkMenuItem.setSelected(softlySecondsPointerMove);
+		});
+		checkMenuItem.setSelected(softlySecondsPointerMove);
+		menu.getItems().add(checkMenuItem);
+
+		menu.getItems().add(new SeparatorMenuItem());
+		MenuItem menuItem = new MenuItem("Change time");
+		menuItem.setOnAction(e -> changeTime());
+		menu.getItems().add(menuItem);
+
+		menu.getItems().add(new SeparatorMenuItem());
+		menuItem = new MenuItem("Close");
+		menuItem.setOnAction(e -> close());
+		menu.getItems().add(menuItem);
+	}
+
 	private void loadDigitalSkins() {
 		int i = 0;
 		while (new File(".\\src\\digitos" + ++i + ".png").exists());
@@ -88,41 +167,51 @@ public class Main extends Application {
 
 	private void setOnKeyPressEvents(Scene scene) {
 		scene.setOnKeyPressed(e -> {
+			if (e.getCode() == KeyCode.ESCAPE)
+				close();
 			if (e.getCode() == KeyCode.F1) {
 				if (++numberSkinIndex == numberSkins.length)
 					numberSkinIndex = 0;
-				numberSkin = numberSkins[numberSkinIndex];
-				repColorIndex = 0;
-				replaceColors(false);
+				refreshNumberSkin();
 			}
-			if (e.getCode() == KeyCode.F2) {
+			if (e.getCode() == KeyCode.F2)
+				replaceColors();
+			if (e.getCode() == KeyCode.F3) {
 				if (++digitalScrollNumberType == 4)
 					digitalScrollNumberType = 1;
 				for (int i = 0; i < 6; i++)
 					scrollDigit[i] = 0;
 			}
-			if (e.getCode() == KeyCode.F3)
-				softlySecondsPointerMove = !softlySecondsPointerMove;
-			if (e.getCode() == KeyCode.ESCAPE) {
-				mainStage.close();
-				isWindowOpened = false;
-			}
 			if (e.getCode() == KeyCode.F4)
-				replaceColors();
-			if (e.getCode() == KeyCode.F5) {
-				String str = Alerts.textPrompt("Prompt", "Alterar hora", null, "Digite o novo horário no formato HH:MM:SS\nOu digite RESET para resetar para a hora do sistema");
-				if (str != null) {
-					if (str.toLowerCase().equals("reset"))
-						changedTime = 0;
-					else if (!Pattern.matches("\\d{1,2}:\\d{1,2}:\\d{1,2}", str))
-						Alerts.error("Erro", "Formato de hora inválido!");
-					else {
-						Date date = MyCalendar.changeTimeFromDate(new Date(), str);
-						changedTime = date.getTime() - System.currentTimeMillis();
-					}
-				}
-			}
+				softlySecondsPointerMove = !softlySecondsPointerMove;
+			if (e.getCode() == KeyCode.F5)
+				changeTime();
 		});
+	}
+
+	private void close() {
+		mainStage.close();
+		isWindowOpened = false;
+	}
+
+	private void changeTime() {
+		String str = Alerts.textPrompt("Prompt", "Alterar hora", null, "Digite o novo horário no formato HH:MM:SS\nOu digite RESET para resetar para a hora do sistema");
+		if (str != null) {
+			if (str.toLowerCase().equals("reset"))
+				changedTime = 0;
+			else if (!Pattern.matches("\\d{1,2}:\\d{1,2}:\\d{1,2}", str))
+				Alerts.error("Erro", "Formato de hora inválido!");
+			else {
+				Date date = MyCalendar.changeTimeFromDate(new Date(), str);
+				changedTime = date.getTime() - System.currentTimeMillis();
+			}
+		}
+	}
+
+	private void refreshNumberSkin() {
+		numberSkin = numberSkins[numberSkinIndex];
+		repColorIndex = 0;
+		replaceColors(false);
 	}
 
 	private void replaceColors(boolean changeToNext) {
@@ -133,7 +222,9 @@ public class Main extends Application {
 			repColorIndex = 0;
 		int[] before = {pr.getArgb(2, 0), pr.getArgb(4, 0)};
 		int[] after = {pr.getArgb(2 + repColorIndex, 0), pr.getArgb(4 + repColorIndex, 0)};
+		bgDigitalColor = numberSkins[numberSkinIndex].getPixelReader().getColor(4 + repColorIndex,  2);
 		numberSkin = ImageUtils.replaceColor(numberSkins[numberSkinIndex], before, after);
+		refreshMenuBar();
 	}
 	
 	private void replaceColors()
@@ -158,7 +249,7 @@ public class Main extends Application {
 
 	private void drawAnalogicClock(GraphicsContext gc) {
 		gc.setFill(Color.CADETBLUE);
-		gc.fillRect(0, 0, screenW, screenH - 138);
+		gc.fillRect(0, 0, screenW, screenH - 180);
 		gc.setFont(Font.font("Arial", 24));
 		gc.setTextAlign(TextAlignment.CENTER);
 		for (int x, n = 0; n < 60; n++) {
@@ -222,18 +313,18 @@ public class Main extends Application {
 		for (int i = 0; i < 6; i++)
 			if (scrollDigit[i] > 0)
 				scrollDigit[i] += 1.883333 * (digitalScrollNumberType == 2 ? 1 : 4);
-		gc.setFill(numberSkin.getPixelReader().getColor(1,  1));
-		gc.fillRect(0, screenH - 180, screenW, screenH);
+		gc.setFill(bgDigitalColor);
+		gc.fillRect(0, screenH - 222, screenW, 222);
 		times[0] = getTimeIntArray(changedDate(-1000L));
 		times[1] = getTimeIntArray();
 		times[2] = getTimeIntArray(changedDate(1000L));
 		for (int y = -1; y < 2; y++) {
-			for (int i = 0, x = 80; i < 6; i++) {
-				gc.drawImage(numberSkin, 2, 113 * (times[y + 1][i] + 2), 61, 113, x + 2, (664 + 116 * y) - scrollDigit[i], 61, 113);
-				x += i == 1 || i == 3 ? 85 : 65;
+			for (int i = 0, x = 75; i < 6; i++) {
+				gc.drawImage(numberSkin, 0, 113 * (times[y + 1][i] + 2) + 8, 65, 113, x, (622 + 116 * y) - scrollDigit[i], 65, 113);
+				x += i == 1 || i == 3 ? 89 : 69;
 			}
-			for (int i = 0, x = 188; i < 2; i++, x += 150)
-				gc.drawImage(numberSkin, 0, 113 * (MyCalendar.getCurrentMicroSecond() >= 500 ? 13 : 14), 65, 113, x, (664 + 116 * y), 65, 113);
+			for (int i = 0, x = 189; i < 2; i++, x += 158)
+				gc.drawImage(numberSkin, 0, 113 * (MyCalendar.getCurrentMicroSecond() >= 500 ? 13 : 14) + 8, 65, 113, x, (622 + 116 * y), 65, 113);
 		}
 	}
 
