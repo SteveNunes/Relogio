@@ -100,8 +100,6 @@ public class Main extends Application {
 		stackPane.setAlignment(Pos.TOP_CENTER);
 		stackPane.setBackground(Background.fill(Color.BLACK));
 		mainScene = new Scene(stackPane);
-		mainScene.setOnMouseEntered(e -> mainScene.setCursor(Cursor.NONE));
-    mainScene.setOnMouseExited(e -> mainScene.setCursor(Cursor.DEFAULT));
 		refreshMenuBar();
 		setOnKeyPressEvents(mainScene);
 		stage.setTitle("Relógio");
@@ -297,10 +295,10 @@ public class Main extends Application {
 
 	private void loadDigitalSkins() {
 		int i = 0;
-		while (new File(".\\src\\digitos" + ++i + ".png").exists());
+		while (new File("digitos" + ++i + ".png").exists());
 		numberSkins = new Image[i - 1];
 		for (int n = 1; n < i ; n++)
-			numberSkins[n - 1] = ImageUtils.removeBgColor(new Image("digitos" + n + ".png"));
+			numberSkins[n - 1] = ImageUtils.removeBgColor(new Image("file:digitos" + n + ".png"));
 	}
 
 	private void setOnKeyPressEvents(Scene scene) {
@@ -333,6 +331,7 @@ public class Main extends Application {
 		mainStage.setFullScreen(!mainStage.isFullScreen());
 		menuBar.setVisible(!mainStage.isFullScreen());
 		stackPane.setAlignment(mainStage.isFullScreen() ? Pos.CENTER : Pos.TOP_CENTER);
+		mainScene.setCursor(mainStage.isFullScreen() ? Cursor.NONE : Cursor.DEFAULT);
 	}
 
 	private void close() {
