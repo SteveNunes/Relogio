@@ -1,5 +1,6 @@
 package application;
 
+import java.awt.Point;
 import java.awt.Rectangle;
 import java.io.File;
 import java.util.Date;
@@ -10,7 +11,8 @@ import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
 
-import gameutil.FPSHandler;
+import gameutil.GameUtils;
+import gui.util.Alerts;
 import gui.util.ImageUtils;
 import javafx.application.Application;
 import javafx.geometry.Pos;
@@ -35,10 +37,8 @@ import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.TextAlignment;
 import javafx.stage.Stage;
-import objmoveutils.Position;
-import util.Alerts;
+import objmoveutils.ShapeUtils;
 import util.IniFile;
-import util.Misc;
 import util.MyCalendar;
 
 public class Main extends Application {
@@ -52,6 +52,7 @@ public class Main extends Application {
 	private final static int digitalY = 650;
 	private static List<Color> colors = ImageUtils.getColorList();
 	private static final String HORARIO_LOCAL = "Horário local";
+	private static final Point center = new Point((int)circleX, (int)circleY);
 	
 	private Stage mainStage;
 	private Scene mainScene;
@@ -61,7 +62,6 @@ public class Main extends Application {
 	private Image numberSkin;
 	private Image[] numberSkins;
 	private Color bgDigitalColor;
-	private FPSHandler fpsHandler;
 	private Map<String, Long> timezones;
 	private String selectedTimezone;
 	private boolean isWindowOpened;
@@ -82,7 +82,6 @@ public class Main extends Application {
 	public void start(Stage stage) {
 		mainStage = stage;
 		mainStage.setFullScreenExitHint("Pressione F12 para sair do modo tela cheia");
-		fpsHandler = new FPSHandler(60);
 		isWindowOpened = true;
 		lastSec = -1;
 		lastTranspNum = -1;
@@ -176,7 +175,7 @@ public class Main extends Application {
 		digitalDef.getItems().add(menuF1);
 		for (int n = 0; n < numberSkins.length; n++) {
 			final int nn = n;
-			WritableImage skin = ImageUtils.copyFromAnotherWritableImageArea(ImageUtils.convertToWritableImage(numberSkins[nn]), new Rectangle(0, 234, 65, 113));
+			WritableImage skin = ImageUtils.copyAreaFromWritableImage((WritableImage)numberSkins[nn], new Rectangle(0, 234, 65, 113));
 			CheckMenuItem checkMenuItem = new CheckMenuItem();
 			checkMenuItem.setGraphic(new ImageView(skin));
 			checkMenuItem.setSelected(n == numberSkinIndex);
@@ -295,10 +294,10 @@ public class Main extends Application {
 
 	private void loadDigitalSkins() {
 		int i = 0;
-		while (new File("digitos" + ++i + ".png").exists());
+		while (new File("Sprites\\digitos" + ++i + ".png").exists());
 		numberSkins = new Image[i - 1];
 		for (int n = 1; n < i ; n++)
-			numberSkins[n - 1] = ImageUtils.removeBgColor(new Image("file:digitos" + n + ".png"));
+			numberSkins[n - 1] = ImageUtils.removeBgColor(new Image("file:Sprites\\digitos" + n + ".png"));
 	}
 
 	private void setOnKeyPressEvents(Scene scene) {
@@ -373,10 +372,10 @@ public class Main extends Application {
 		PixelReader pr = numberSkins[numberSkinIndex].getPixelReader();
 		if (pr.getArgb(2 + repColorIndex, 0) == pr.getArgb(4 + repColorIndex, 0))
 			repColorIndex = 0;
-		int[] before = {pr.getArgb(2, 0), pr.getArgb(4, 0)};
-		int[] after = {pr.getArgb(2 + repColorIndex, 0), pr.getArgb(4 + repColorIndex, 0)};
+		Integer[] before = {pr.getArgb(2, 0), pr.getArgb(4, 0)};
+		Integer[] after = {pr.getArgb(2 + repColorIndex, 0), pr.getArgb(4 + repColorIndex, 0)};
 		bgDigitalColor = numberSkins[numberSkinIndex].getPixelReader().getColor(4 + repColorIndex,  2);
-		numberSkin = ImageUtils.replaceColor(numberSkins[numberSkinIndex], before, after);
+		numberSkin = ImageUtils.convertBufferedImageToImage(ImageUtils.replaceColor(ImageUtils.convertImageToBufferedImage(numberSkins[numberSkinIndex]), before, after));
 		refreshMenuBar();
 	}
 	
@@ -406,9 +405,9 @@ public class Main extends Application {
 		gc.setFont(Font.font("Arial", 24));
 		gc.setTextAlign(TextAlignment.CENTER);
 		for (int x, n = 0; n < 60; n++) {
-			Position p = Position.circleDot(circleX, circleY, circleR + 10, 60, n - 15);
-			Position p2 = Position.circleDot(circleX, circleY, circleR + 20, 60, n - 15);
-			Position p3 = Position.circleDot(circleX, circleY, circleR + 50, 60, n - 15);
+			Point p = ShapeUtils.getRealocatedPoint(center, circleR + 10, Math.toRadians(360 / 60 * n) - Math.PI / 2);
+			Point p2 = ShapeUtils.getRealocatedPoint(center, circleR + 20, Math.toRadians(360 / 60 * n) - Math.PI / 2);
+			Point p3 = ShapeUtils.getRealocatedPoint(center, circleR + 50, Math.toRadians(360 / 60 * n) - Math.PI / 2);
 			for (int z = 0; z < 2; z++) {
 				gc.setGlobalAlpha(z == 0 || n != MyCalendar.getSecondFromDate(changedDate()) ? 1 : (float)(1f - MyCalendar.getCurrentMicroSecond() / 1000f));
 				if (z == 0 || n != MyCalendar.getSecondFromDate(changedDate()))
@@ -416,7 +415,7 @@ public class Main extends Application {
 				else
 					gc.setStroke(n % 5 == 0 ? colors.get(analogicColorsIndex[7]) : colors.get(analogicColorsIndex[5]));
 				gc.setLineWidth(n % 5 == 0 ? 3 : 1);
-				gc.strokeLine(circleX + p.getX(), circleY + p.getY(), circleX + p2.getX(), circleY + p2.getY());
+				gc.strokeLine(p.getX(), p.getY(), p2.getX(), p2.getY());
 			}
 			gc.setGlobalAlpha(1);
 			if (n % 5 == 0) {
@@ -430,8 +429,8 @@ public class Main extends Application {
 					gc.setStroke(z == 0 || (MyCalendar.getSecondFromDate(changedDate()) != n && lastTranspNum != n) ? colors.get(analogicColorsIndex[8]) : colors.get(analogicColorsIndex[9]));
 					gc.setFill(z == 0 || (MyCalendar.getSecondFromDate(changedDate()) != n && lastTranspNum != n) ? colors.get(analogicColorsIndex[8]) : colors.get(analogicColorsIndex[9]));
 					x = n == 0 ? 12 : n / 5;
-					gc.fillText((x < 10 ? " " : "") + x, circleX + p3.getX(), circleY + p3.getY() + gc.getFont().getSize() / 3);
-					gc.strokeText((x < 10 ? " " : "") + x, circleX + p3.getX(), circleY + p3.getY() + gc.getFont().getSize() / 3);
+					gc.fillText((x < 10 ? " " : "") + x, p3.getX() - 4, p3.getY() + gc.getFont().getSize() / 3);
+					gc.strokeText((x < 10 ? " " : "") + x, p3.getX() - 4, p3.getY() + gc.getFont().getSize() / 3);
 				}
 			}
 		}
@@ -440,11 +439,11 @@ public class Main extends Application {
 		hour[0] = (!softlySecondsPointerMove ? MyCalendar.getSecondFromDate(changedDate()) : MyCalendar.getSecondFromDate(changedDate()) * 1000 + MyCalendar.getCurrentMicroSecond());
 		hour[1] = MyCalendar.getMinuteFromDate(changedDate()) * 60000 + MyCalendar.getSecondFromDate(changedDate()) * 1000 + MyCalendar.getCurrentMicroSecond();
 		hour[2] = MyCalendar.getHourFromDate(changedDate()) * 3600000 + hour[1];
+		gc.setLineWidth(4);
 		for (int n = 0; n < 3; n++) {
-			Position p = Position.circleDot(circleX, circleY, circleR - 40 * n, clockTicks[softlySecondsPointerMove ? 0 : 1][n], hour[n] - clockTicks[softlySecondsPointerMove ? 0 : 1][n] / 4);
+			Point p = ShapeUtils.getRealocatedPoint(center, circleR - 40 * n, Math.toRadians(360d / clockTicks[0][n] * hour[n]) - Math.PI / 2); 
 			gc.setStroke(colors.get(analogicColorsIndex[n]));
-			gc.setLineWidth(4);
-			gc.strokeLine(circleX, circleY, circleX + p.getX(), circleY + p.getY());
+			gc.strokeLine(circleX, circleY, p.getX(), p.getY());
 		}
 		gc.setFill(colors.get(analogicColorsIndex[3]));
 		gc.fillOval(circleX - 10, circleY - 10, 20, 20);
@@ -548,18 +547,13 @@ public class Main extends Application {
 	}
 
 	private void mainLoop() {
-		GraphicsContext gc = canvas.getGraphicsContext2D();
-//		gc.setFill(Color.BLACK);
-	//	gc.fillRect(0, 0, DesktopUtils.getHardwareScreenWidth(), DesktopUtils.getHardwareScreenHeight());
-		drawDigitalHour(gc);		
-		drawAnalogicClock(gc);
-		fpsHandler.fpsCounter();
-		if (isWindowOpened)
-			Misc.runLater(() -> mainLoop());
-		else
-			saveConfigsToDisk();
+		GameUtils.createTimeLine(60, b -> !isWindowOpened, () -> saveConfigsToDisk(), () -> {
+			GraphicsContext gc = canvas.getGraphicsContext2D();
+			drawDigitalHour(gc);		
+			drawAnalogicClock(gc);
+		});
 	}
-
+	
 	public static void main(String[] args)
 		{ launch(args); }
 
