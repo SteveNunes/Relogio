@@ -547,11 +547,11 @@ public class Main extends Application {
 	}
 
 	private void mainLoop() {
-		GameUtils.createTimeLine(60, b -> !isWindowOpened, () -> saveConfigsToDisk(), () -> {
+		GameUtils.createAnimationTimer(60, (load, fps) -> !isWindowOpened, () -> {
 			GraphicsContext gc = canvas.getGraphicsContext2D();
 			drawDigitalHour(gc);		
 			drawAnalogicClock(gc);
-		});
+		}).start();
 	}
 	
 	public static void main(String[] args)
