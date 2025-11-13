@@ -39,6 +39,7 @@ import javafx.scene.text.TextAlignment;
 import javafx.stage.Stage;
 import objmoveutils.ShapeUtils;
 import util.IniFile;
+import util.Misc;
 import util.MyCalendar;
 
 public class Main extends Application {
@@ -77,7 +78,6 @@ public class Main extends Application {
 	private float lastTranspNumVal;
 	private double[] scrollDigit;
 	
-	@SuppressWarnings("serial")
 	@Override
 	public void start(Stage stage) {
 		mainStage = stage;
@@ -106,7 +106,10 @@ public class Main extends Application {
 		stage.setWidth(screenW);
 		stage.setHeight(screenH);
 		stage.setResizable(false);
-		stage.setOnCloseRequest(e -> isWindowOpened = false);
+		stage.setOnCloseRequest(e -> {
+			isWindowOpened = false;
+			Misc.runShutdownEvents();
+		});
 		stage.show();
 		mainLoop();
 	}
